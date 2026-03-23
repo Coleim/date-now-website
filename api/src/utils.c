@@ -1,4 +1,6 @@
+#include <lib/mongoose.h>
 #include <lib/sqlite3.h>
+#include <colors.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,8 +40,10 @@
 		return 1; \
 	}
 
+#define ERROR_REPLY_JSON "{\"code\":%d,\"message\":\"%s\"}"
+#define LIST_REPLY_JSON "{\"data\":%s,\"count\":%d,\"total\":%d,\"totalPages\":%d}"
 #define MEDIA_JSON "{\"id\":%d,\"alt\":\"%s\",\"url\":\"%s\",\"width\":%f,\"height\":%f}"
-#define USER_JSON "{\"id\":%d,\"username\":\"%s\",\"role\":\"%s\",\"link\":%s,\"picture\":%s,\"subscribedAt\":%d,\"isSupporter\":%d,\"createdAt\":%d}"
+#define USER_JSON "{\"id\":%d,\"username\":\"%s\",\"email\":\"%s\",\"role\":\"%s\",\"link\":%s,\"picture\":%s,\"subscribedAt\":%d,\"isSupporter\":%d,\"createdAt\":%d}"
 
 const size_t NULL_SIZE = strlen("null") * sizeof(char);
 const size_t DOUBLE_QUOTES_SIZE = strlen("\"\"") * sizeof(char);
@@ -58,13 +62,26 @@ const char *get_method(const char *method_buf) {
 }
 
 /** JSON PARSE UTILS */
+void error_reply_to_json(struct error_reply *err) {
+	size_t len = snprintf(NULL, 0, ERROR_REPLY_JSON, err->code, err->message);
+
+	err->json = malloc(len);
+	sprintf(err->json, ERROR_REPLY_JSON, err->code, err->message);
+}
+
+void list_reply_to_json(struct list_reply *reply) {
+	size_t len = snprintf(NULL, 0, LIST_REPLY_JSON, reply->data, reply->count, reply->total, reply->total_pages);
+
+	reply->json = malloc(len);
+	sprintf(reply->json, LIST_REPLY_JSON, reply->data, reply->count, reply->total, reply->total_pages);
+}
 
 size_t media_to_json_len(struct media *media) {
 	if(media == NULL) {
 		return NULL_SIZE;
 	}
 
-	return snprintf(NULL, 0, MEDIA_JSON, media->id, media->alternative_text, media->url, media->width, media->height) - 2;
+	return snprintf(NULL, 0, MEDIA_JSON, media->id, media->alternative_text, media->url, media->width, media->height);
 }
 
 char *media_to_json(struct media *media) {
@@ -76,7 +93,6 @@ char *media_to_json(struct media *media) {
 	json = malloc(media_to_json_len(media));
 
 	int len = sprintf(json, MEDIA_JSON, media->id, media->alternative_text, media->url, media->width, media->height);
-	printf("to json len: %d\n", len);
 
 	return json;
 }
@@ -86,7 +102,17 @@ size_t user_to_json_len(struct user *user) {
 		return NULL_SIZE;
 	}
 
-	return snprintf(NULL, 0, USER_JSON, user->id, user->username, user->role, user->link, media_to_json(user->picture), user->subscribed_at, user->is_supporter, user->created_at) - 2;
+	char *link = "null";
+	if(user->link != NULL) {
+		link = malloc(snprintf(NULL, 0, "\"%s\"", user->link));
+		sprintf(link, "\"%s\"", user->link);
+	}
+
+	int len = snprintf(NULL, 0, USER_JSON, user->id, user->username, user->email, user->role, link, media_to_json(user->picture), user->subscribed_at, user->is_supporter, user->created_at);
+
+	if(strcmp(link, "null") != 0) free(link);
+
+	return len;
 }
 
 char *user_to_json(struct user *user) {
@@ -96,19 +122,16 @@ char *user_to_json(struct user *user) {
 
 	char *link = "null";
 	if(user->link != NULL) {
-		link = malloc(sizeof(char) * strlen(user->link) + 3);
+		link = malloc(snprintf(NULL, 0, "\"%s\"", user->link));
 		sprintf(link, "\"%s\"", user->link);
 	}
 
 	char *json = NULL;
 	json = malloc(user_to_json_len(user));
 
-	int len = sprintf(json, USER_JSON, user->id, user->username, user->role, link, media_to_json(user->picture), user->subscribed_at, user->is_supporter, user->created_at);
-	printf("to json len: %d\n", len);
+	sprintf(json, USER_JSON, user->id, user->username, user->email, user->role, link, media_to_json(user->picture), user->subscribed_at, user->is_supporter, user->created_at);
 
-	if(strcmp(link, "null")) {
-		free(link);
-	}
+	if(strcmp(link, "null") != 0) free(link);
 
 	return json;
 }
@@ -116,38 +139,36 @@ char *user_to_json(struct user *user) {
 char *users_to_json(struct user**users, size_t len) {
 	char *json = NULL;
 
-	size_t json_len = strlen("[]") * sizeof(char) + 1;
-
+	size_t json_len = 0;
 	for(int i = 0; i < len; i += 1) {
 		json_len += user_to_json_len(users[i]);
-		printf("user len: %ld\n", user_to_json_len(users[i]));
 
 		if(i < len - 1) {
 			json_len += COMMA_SIZE;
 		}
 	}
 
-	json = malloc(json_len);
-	json[0] = '\0';
-
-	strcat(json, "[");
-
+	char *users_json = malloc(json_len+1);
+	users_json[0] = '\0';
 	for(int i = 0; i < len; i += 1) {
 		char *user = user_to_json(users[i]);
-		printf("user json len: %ld\n", strlen(user));
 
-		strcat(json, user);
-		strcat(json, ",");
+		strcat(users_json, user);
+		strcat(users_json, ",");
 
 		if(strcmp(user, "null")) free(user);
 	}
+	users_json[json_len] = '\0';
 
 	if(len > 0) {
-		json[json_len-2] = ']';
+		json = malloc(snprintf(NULL, 0, "[%s]", users_json));
+		sprintf(json, "[%s]", users_json);
 	}
 	else {
-		strcat(json, "]");
+		json = "[]";
 	}
+
+	free(users_json);
 
 	return json;
 }
@@ -196,7 +217,17 @@ int free_users(struct user **users, size_t len) {
 }
 
 /** MAPPING */
+int error_reply_map(struct error_reply *err, int code, char *message, int code_http) {
+	if(err == NULL) return -1;
 
+	err->code = code;
+	err->code_http = code_http;
+	if(message != NULL) err->message = message;
+
+	error_reply_to_json(err);
+
+	return 0;
+}
 
 int user_map(struct user *user, sqlite3_stmt *stmt, int start_index, int end_index) {
 	if(start_index > end_index || user == NULL || stmt == NULL) {
@@ -212,6 +243,7 @@ int user_map(struct user *user, sqlite3_stmt *stmt, int start_index, int end_ind
 	int is_supporter_index = start_index+6;
 	int created_at_index = start_index+7;
 
+	printf(ANSI_BACKGROUND_AMBER " USER " ANSI_RESET_ALL "\n");
 	// ID
 	MAP_INT(user->id, stmt, id_index, 1);
 	// Username
@@ -255,6 +287,45 @@ int media_map(struct media *media, sqlite3_stmt *stmt, int start_index, int end_
 	return 0;
 }
 
+/** HYDRATE */
+void user_hydrate(struct mg_http_message *msg, struct user *user) {
+	struct mg_str key, val;
+	int number;
+	bool number_parsed;
+
+	size_t ofs = 0;
+	while ((ofs = mg_json_next(msg->body, ofs, &key, &val)) > 0) {
+		printf("%.*s -> %.*s\n", (int) key.len, key.buf, (int) val.len, val.buf);
+
+		if(mg_strcmp(key, mg_str("\"username\"")) == 0) {
+			printf("USERNAME: %.*s\n", (int) val.len, val.buf);
+			user->username = malloc(val.len);
+			sprintf(user->username, "%.*s", (int) val.len-2, val.buf+1);
+		}
+		else if(mg_strcmp(key, mg_str("\"email\"")) == 0) {
+			printf("EMAIL: %.*s\n", (int) val.len, val.buf);
+			user->email = malloc(val.len);
+			sprintf(user->email, "%.*s", (int) val.len-2, val.buf+1);
+		}
+		else if(mg_strcmp(key, mg_str("\"role\"")) == 0) {
+			printf("ROLE: %.*s\n", (int) val.len, val.buf);
+			user->role = malloc(val.len);
+			sprintf(user->role, "%.*s", (int) val.len-2, val.buf+1);
+		}
+		else if(mg_strcmp(key, mg_str("\"link\"")) == 0) {
+			printf("LINK: %.*s\n", (int) val.len, val.buf);
+			user->link = malloc(val.len);
+			sprintf(user->link, "%.*s", (int) val.len-2, val.buf+1);
+		}
+		else if(mg_strcmp(key, mg_str("\"isSupporter\"")) == 0) {
+			number_parsed = mg_str_to_num(val, 10, &number, sizeof(int));
+			if(number_parsed) {
+				user->is_supporter = number;
+			}
+		}
+	}
+}
+
 /** INIT */
 int user_init(struct user *user) {
 	if(user == NULL) {
@@ -268,6 +339,7 @@ int user_init(struct user *user) {
 	user->link = NULL;
 	user->picture = NULL;
 
+	user->subscribed_at = 0;
 	user->is_supporter = 0;
 
 	return 0;

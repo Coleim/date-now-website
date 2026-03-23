@@ -1,6 +1,7 @@
 const INPUT_TYPE = {
         select: "select",
         string: "text",
+        integer: "number",
 };
 
 const HTTP_RESPONSE_TITLE = {

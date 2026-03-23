@@ -5,16 +5,14 @@
 #include <utils.h>
 #include <stddef.h>
 #include <structs.h>
-#include <sql/user.h>
+#include <sql/tag.h>
 #include <lib/mongoose.h>
 #include <macros/colors.h>
 #include <macros/endpoints.h>
 
-#define USER_EXISTS_MESSAGE "The user already exists."
-#define EMAIL_REQUIRED_MESSAGE "Email is required."
-#define ROLE_FORMAT_MESSAGE "Value of 'role' should be 'USER' or 'AUTHOR'."
+#define USER_EXISTS_MESSAGE "The tag already exists."
 
-void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct error_reply *error_reply) {
+void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct error_reply *error_reply) {
 	int query_code;
 	error_reply = malloc(sizeof(struct error_reply));
 
@@ -41,7 +39,7 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 		reply->page_size = page_size;
 		reply->data = NULL;
 
-		reply->total = reply->count = get_users_len(&q);
+		reply->total = reply->count = get_tags_len(&q);
 		reply->total_pages = 0;
 		printf("ARRAY COUNT:\tTOTAL - %d\t|\tCOUNT - %d\t|\tTOTAL PAGES - %d\n", reply->total, reply->count, reply->total_pages);
 		// If pagination
@@ -71,11 +69,11 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 		printf("PAGINATION:\tPAGE INDEX - %d\t|\tPAGE SIZE - %d\n", page, page_size);
 		printf("ARRAY COUNT:\tTOTAL - %d\t|\tCOUNT - %d\t|\tTOTAL PAGES - %d\n", reply->total, reply->count, reply->total_pages);
 
-		struct user **users = NULL;
+		struct tag **tags = NULL;
 
 		if(reply->count > 0) {
-			users = malloc(reply->count * sizeof(struct user *));
-			query_code = get_users(reply->count, users, &q, &sort, reply->page, reply->page_size);
+			tags = malloc(reply->count * sizeof(struct tag *));
+			query_code = get_tags(reply->count, tags, &q, &sort, reply->page, reply->page_size);
 
 			if(query_code != 0) {
 				fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
@@ -88,14 +86,14 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 
 		}
 
-		reply->data = users_to_json(users, reply->count);
+		reply->data = tags_to_json(tags, reply->count);
 		list_reply_to_json(reply);
 
 		mg_http_reply(c, 200, JSON_HEADER, "%s\n", reply->json);
 		printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHORS SUCCESSFULLY SENT ==="));
 
 		if(reply->count > 0) {
-			free_users(users, reply->count);
+			free_tags(tags, reply->count);
 			free(reply->data);
 			free(reply->json);
 		}
@@ -113,18 +111,18 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 			return;
 		}
 		else {
-			// Email and username not existing already
+			// Email and tagname not existing already
 			char *email = malloc(length);
 			strncpy(email, msg->body.buf + offset+1, length-2);
 
-			char *username = NULL;
-			offset = mg_json_get(msg->body, "$.username", &length);
+			char *tagname = NULL;
+			offset = mg_json_get(msg->body, "$.tagname", &length);
 			if(offset >= 0) {
-				username = malloc(length);
-				strncpy(username, msg->body.buf + offset+1, length-2);
+				tagname = malloc(length);
+				strncpy(tagname, msg->body.buf + offset+1, length-2);
 			}
 
-			int exists = user_email_exists(username, email);
+			int exists = tag_email_exists(tagname, email);
 			if(exists != 0) {
 				ERROR_REPLY_400(USER_EXISTS_MESSAGE);
 				fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER ALREADY EXISTS"));
@@ -154,19 +152,19 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 		}
 
 		// Hydrate
-		struct user *user = malloc(sizeof(struct user));
-		int user_init_rc = user_init(user);
-		if(user_init_rc != 0) {
+		struct tag *tag = malloc(sizeof(struct tag));
+		int tag_init_rc = tag_init(tag);
+		if(tag_init_rc != 0) {
 			ERROR_REPLY_500;
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER IS NULL"));
 
 			return;
 		}
 
-		user_hydrate(msg, user);
+		tag_hydrate(msg, tag);
 
 		// Store in DB
-		query_code = add_user(user);
+		query_code = add_tag(tag);
 		if(query_code != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
 			HANDLE_QUERY_CODE;
@@ -178,24 +176,24 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY ADDED ==="));
 		}
 
-		free_user(user);
+		free_tag(tag);
 	}
 	else {
 		ERROR_REPLY_405;
 	}
 }
 
-void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id, struct error_reply *error_reply) {
+void send_tag_res(struct mg_connection *c, struct mg_http_message *msg, int id, struct error_reply *error_reply) {
 	int query_code;
 	error_reply = malloc(sizeof(struct error_reply));
 
 	if(mg_match(msg->method, mg_str("GET"), NULL)) {
 		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET AUTHOR ==="));
 
-		struct user *user = NULL;
-		user = malloc(sizeof(struct user));
+		struct tag *tag = NULL;
+		tag = malloc(sizeof(struct tag));
 
-		query_code = get_user(user, id);
+		query_code = get_tag(tag, id);
 
 		if(query_code != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USER"));
@@ -204,20 +202,20 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			return;
 		}
 		else {
-			char *result = user_to_json(user);
+			char *result = tag_to_json(tag);
 
 			mg_http_reply(c, 200, JSON_HEADER, "%s\n", result);
 			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY SENT ==="));
 		}
 
-		free_user(user);
+		free_tag(tag);
 	}
 	else if (mg_match(msg->method, mg_str("PUT"), NULL)) {
 		// Hydrate
-		struct user *user = malloc(sizeof(struct user));
+		struct tag *tag = malloc(sizeof(struct tag));
 
 		// Check if exists
-		int exists = user_exists(id);
+		int exists = tag_exists(id);
 		if(!exists) {
 			ERROR_REPLY_404;
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER NOT FOUND"));
@@ -229,18 +227,18 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 		// Email required
 		offset = mg_json_get(msg->body, "$.email", &length);
 		if(offset >= 0) {
-			// Email and username not existing already
+			// Email and tagname not existing already
 			char *email = malloc(length);
 			strncpy(email, msg->body.buf + offset+1, length-2);
 
-			char *username = NULL;
-			offset = mg_json_get(msg->body, "$.username", &length);
+			char *tagname = NULL;
+			offset = mg_json_get(msg->body, "$.tagname", &length);
 			if(offset >= 0) {
-				username = malloc(length);
-				strncpy(username, msg->body.buf + offset+1, length-2);
+				tagname = malloc(length);
+				strncpy(tagname, msg->body.buf + offset+1, length-2);
 			}
 
-			int exists = user_email_exists(username, email);
+			int exists = tag_email_exists(tagname, email);
 			if(exists != 0) {
 				ERROR_REPLY_400(USER_EXISTS_MESSAGE);
 				fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER ALREADY EXISTS"));
@@ -268,7 +266,7 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			}
 		}
 
-		query_code = get_user(user, id);
+		query_code = get_tag(tag, id);
 		if(query_code != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
 			HANDLE_QUERY_CODE;
@@ -276,11 +274,11 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			return;
 		}
 
-		user_hydrate(msg, user);
-		user->id = id;
+		tag_hydrate(msg, tag);
+		tag->id = id;
 
 		// Store in DB
-		query_code = edit_user(user);
+		query_code = edit_tag(tag);
 		if(query_code != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
 			HANDLE_QUERY_CODE;
@@ -292,11 +290,11 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY EDITED ==="));
 		}
 
-		free_user(user);
+		free_tag(tag);
 	}
 	else if (mg_match(msg->method, mg_str("DELETE"), NULL)) {
 		// Check if exists
-		int exists = user_exists(id);
+		int exists = tag_exists(id);
 		if(!exists) {
 			ERROR_REPLY_404;
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER NOT FOUND"));
@@ -304,7 +302,7 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			return;
 		}
 
-		int delete_rc = delete_user(id);
+		int delete_rc = delete_tag(id);
 		if(delete_rc != 0) {
 			ERROR_REPLY_500;
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("COULDN'T DELETE USER"));

@@ -2,6 +2,23 @@
 
 #include <stdlib.h>
 
+struct error_reply {
+	int code;
+	int code_http;
+	char *message;
+	char *json;
+};
+
+struct list_reply {
+	char *data;
+	int count;
+	int total;
+	size_t page_size;
+	int page;
+	int total_pages;
+	char *json;
+};
+
 struct media {
 	unsigned id;
 	char *alternative_text;

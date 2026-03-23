@@ -3,8 +3,9 @@ const generateGETListEndpoint = (data) => {
                 method: "GET",
                 name: `${data.name.plural} List`,
                 queryParameters: [
-                        { name: "q", type: "string" },
+                        { label: "Query", name: "q", type: "string" },
                         {
+                                label: "Sorting",
                                 name: "sort",
                                 type: "select",
                                 options: [
@@ -21,6 +22,18 @@ const generateGETListEndpoint = (data) => {
                                                 label: "Descending",
                                         },
                                 ],
+                        },
+                        {
+                                label: "Page Index",
+                                name: "page",
+                                type: "integer",
+                                min: 1,
+                        },
+                        {
+                                label: "Page Size",
+                                name: "page_size",
+                                type: "integer",
+                                min: 1,
                         },
                 ],
                 responses: [

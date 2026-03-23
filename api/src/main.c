@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <lib/mongoose.h>
 #include <lib/sqlite3.h>
+#include <structs.h>
 #include <endpoints/user.h>
 
 sqlite3 *db;
@@ -20,6 +21,8 @@ void sigTerm(int code) {
 }
 
 static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
+	struct error_reply *error_reply = NULL;
+
 	if (ev == MG_EV_HTTP_MSG) {
 		struct mg_http_message *http_msg = (struct mg_http_message *) ev_data;
 		struct mg_str endpoint_cap[2];
@@ -29,10 +32,8 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 
 			if(mg_strcmp(endpoint_cap[0], mg_str("user")) >= 0) {
 				struct mg_str user_cap[2];
-				printf("Author endpoints\n");
 
 				if(mg_match(endpoint_cap[0], mg_str("user/*"), user_cap)) {
-					printf("USER SINGLE - ID: %.*s\n", (int)user_cap[0].len, user_cap[0].buf);
 					int id;
 					int id_parsed = mg_str_to_num(user_cap[0], 10, &id, sizeof(int));
 					if(!id_parsed) {
@@ -40,11 +41,27 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 						return;
 					}
 
-					send_user_res(c, http_msg, id);
+					send_user_res(c, http_msg, id, error_reply);
 				}
 				else if(mg_strcmp(endpoint_cap[0], mg_str("user")) == 0) {
-					printf("USERS LIST\n");
-					send_users_res(c, http_msg);
+					send_users_res(c, http_msg, error_reply);
+				}
+			}
+			if(mg_strcmp(endpoint_cap[0], mg_str("tag")) >= 0) {
+				struct mg_str tag_cap[2];
+
+				if(mg_match(endpoint_cap[0], mg_str("tag/*"), tag_cap)) {
+					int id;
+					int id_parsed = mg_str_to_num(tag_cap[0], 10, &id, sizeof(int));
+					if(!id_parsed) {
+						mg_http_reply(c, 400, "Content-Type: application/json\r\n", "{ \"code\": 400, \"error\": \"ID is not a number.\" }");
+						return;
+					}
+
+					send_tag_res(c, http_msg, id, error_reply);
+				}
+				else if(mg_strcmp(endpoint_cap[0], mg_str("tag")) == 0) {
+					send_tags_res(c, http_msg, error_reply);
 				}
 			}
 		}
@@ -56,6 +73,12 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 	else if (ev == MG_EV_ERROR) {
 		mg_http_reply(c, 500, "", "%m", MG_ESC("error"));
 	}
+
+	if(error_reply != NULL) {
+		free(error_reply->json);
+		free(error_reply->message);
+	}
+	free(error_reply);
 }
 
 int main() {

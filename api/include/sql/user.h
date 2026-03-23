@@ -5,8 +5,9 @@
 #include <lib/mongoose.h>
 
 int user_exists(int id);
-int get_users_len();
-int get_users(size_t len, struct user **arr);
+int user_email_exists(char *username, char *email);
+int get_users_len(const struct mg_str *q);
+int get_users(size_t len, struct user **arr, const struct mg_str *q, const struct mg_str *sort, int page, int page_size);
 int get_user(struct user *user, int id);
 int add_user(struct user *user);
 int edit_user(struct user *user);

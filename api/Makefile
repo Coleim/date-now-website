@@ -14,7 +14,7 @@ sql_o := ${foreach t,$(tables),obj/sql/$(t).o}
 helpers_h := $(includes)/utils.h $(includes)/structs.h $(includes)/enums.h
 
 serv_api : obj/main.o $(libs_o) $(helpers_o) $(endpoints_o) $(sql_o)
-	$(CC) -o serv_api obj/main.o $(libs_o) $(endpoints_o) $(sql_o) $(helpers_o) -g
+	$(CC) -o serv_api obj/main.o $(libs_o) $(endpoints_o) $(sql_o) $(helpers_o) -g -lm
 
 obj/main.o : ./src/main.c $(libs_o) $(endpoints_o) $(helpers_o)
 	$(CC) -c $< $(CFLAGS) -o $@

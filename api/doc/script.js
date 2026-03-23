@@ -165,12 +165,14 @@ const getUriParameterNode = (parameter) => {
 };
 
 const getQueryParameterNode = (parameter) => {
-        const label = `${parameter.name}${parameter.type !== "select" ? `<span class="tag">${parameter.type}</span>` : ""}`;
+        const label = `${parameter.label}${parameter.type !== "select" ? `<span class="tag">${parameter.type}</span>` : ""}`;
         const inputOpts = {
                 type: INPUT_TYPE[parameter.type],
                 defaultValue: parameter.defaultValue,
                 id: getQueryParameterId(parameter.name),
                 options: parameter.options,
+                min: parameter.min,
+                max: parameter.max,
         };
 
         return getFormControl(label, inputOpts);
