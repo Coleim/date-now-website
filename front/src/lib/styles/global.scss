@@ -1,0 +1,104 @@
+@forward 'typography.scss';
+@use 'variables.scss';
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	background-image: url('/sky.png');
+	background-attachment: fixed;
+	margin: 0;
+	overflow-x: hidden;
+	line-height: 1.5;
+	font-family: 'General Sans', sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	margin: 16px 0;
+	text-wrap: balance;
+	line-height: 1.1;
+}
+
+h1 {
+	font-size: 3rem;
+}
+
+h2 {
+	font-size: 2.75rem;
+}
+
+ul {
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+a {
+	text-decoration: none;
+	color: inherit;
+
+	font-weight: 500;
+	border-bottom: 2px solid variables.$black;
+	margin-bottom: 2px;
+	display: inline-block;
+	transition: all 0.3s ease;
+
+	&:hover,
+	&:focus {
+		color: variables.$blue-dark;
+		border-bottom-color: variables.$blue-dark;
+	}
+}
+
+img,
+svg {
+	width: 100%;
+	height: auto;
+}
+
+button {
+	font-size: 1rem;
+	font-family: 'General Sans', sans-serif;
+	border: 0;
+}
+
+p {
+	max-width: 75ch;
+}
+
+.root {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	max-width: variables.$max-width-body;
+	position: relative;
+	margin: 0 auto;
+	padding: variables.$padding-body-y variables.$padding-body-x variables.$padding-body-y * 3;
+}
+
+.visually-hidden {
+	border: 0;
+	clip-path: inset(50%);
+	height: 1px;
+	margin: 0;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+.glass {
+	background: rgba(255, 255, 255, 0.37);
+	box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(30px);
+	border-radius: 16px;
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	padding: 10px 20px;
+}

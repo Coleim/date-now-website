@@ -1,0 +1,269 @@
+{
+        "tables": [
+                {
+                        "name": {
+                                "singular": "media",
+                                "plural": "medias"
+                        },
+                        "primaryKey": {
+                                "name": "id",
+                                "type": "integer",
+                                "defaultValue": "1"
+                        },
+                        "uri": "/media",
+                        "schema": {
+                                "id": "integer",
+                                "alt": "string",
+                                "url": "string",
+                                "width": "double?",
+                                "height": "double?"
+                        },
+                        "body": {
+                                "put": {
+                                        "schema": {
+                                                "alt": "string",
+                                                "url": "string",
+                                                "width": "double?",
+                                                "height": "double?"
+                                        }
+                                }
+                        }
+                },
+                {
+                        "name": {
+                                "singular": "user",
+                                "plural": "users"
+                        },
+                        "primaryKey": {
+                                "name": "id",
+                                "type": "integer",
+                                "defaultValue": "1"
+                        },
+                        "uri": "/user",
+                        "schema": {
+                                "id": "integer",
+                                "username": "string?",
+                                "email": "string",
+                                "role": "USER | AUTHOR",
+                                "totpSeed": "string?",
+
+                                "link": "string?",
+                                "picture": "foreignKey-media",
+
+                                "subscribedAt": "timestamp?",
+                                "isSupporter": "boolean",
+
+                                "createdAt": "timestamp"
+                        },
+                        "body": {
+                                "post": {
+                                        "schema": {
+                                                "username": "string?",
+                                                "email": "string",
+                                                "role": "USER | AUTHOR",
+                                                "link": "string?"
+                                        },
+                                        "defaultValue": "{\n\t\"username\": \"DevGirl_\",\n\t\"email\": \"contact@lauradurieux.dev\",\n\t\"role\": \"AUTHOR\",\n\t\"link\": \"hihihuhuh.com\"\n}"
+                                },
+                                "put": {
+                                        "username": "string?",
+                                        "email": "string",
+                                        "role": "USER | AUTHOR",
+                                        "link": "string?",
+                                        "subscribedAt": "timestamp?",
+                                        "isSupporter": "boolean"
+                                }
+                        }
+                },
+                {
+                        "name": {
+                                "singular": "tag",
+                                "plural": "tags"
+                        },
+                        "primaryKey": {
+                                "name": "name",
+                                "type": "string",
+                                "defaultValue": "Computer Science"
+                        },
+                        "uri": "/tag",
+                        "schema": {
+                                "name": "string",
+                                "color": "string"
+                        },
+                        "body": {
+                                "put": {
+                                        "schema": { "color": "string" },
+                                        "defaultValue": "{\n\t\"color\": \"#123456\"\n}"
+                                }
+                        }
+                },
+                {
+                        "name": {
+                                "singular": "sponsor",
+                                "plural": "sponsors"
+                        },
+                        "primaryKey": {
+                                "name": "name",
+                                "type": "string",
+                                "defaultValue": "Firefox"
+                        },
+                        "uri": "/sponsor",
+                        "schema": {
+                                "name": "string",
+                                "link": "string"
+                        },
+                        "body": {
+                                "put": {
+                                        "schema": { "link": "string" },
+                                        "defaultValue": "{\n\t\"link\": \"firefox.com\"\n}"
+                                }
+                        }
+                },
+                {
+                        "name": {
+                                "singular": "issue",
+                                "plural": "issues"
+                        },
+                        "primaryKey": {
+                                "name": "id",
+                                "type": "integer",
+                                "defaultValue": 1
+                        },
+                        "uri": "/issue",
+                        "schema": {
+                                "id": "integer",
+                                "slug": "string",
+                                "title": "string",
+                                "subtitle": "string",
+                                "cover": "foreignKey-media",
+                                "createdAt": "datetime",
+                                "publishedAt": "datetime?",
+                                "updatedAt": "datetime?",
+                                "issueNumber": "integer",
+                                "excerpt": "string",
+                                "content": "string",
+                                "isSponsored": "boolean",
+                                "status": "DRAFT | PUBLISHED | ARCHIVED",
+                                "openedMailCount": "integer"
+                        },
+                        "response": {
+                                "get-single": {
+                                        "id": "integer",
+                                        "slug": "string",
+                                        "title": "string",
+                                        "subtitle": "string",
+                                        "cover": "foreignKey-media",
+                                        "createdAt": "datetime",
+                                        "publishedAt": "datetime?",
+                                        "updatedAt": "datetime?",
+                                        "issueNumber": "integer",
+                                        "excerpt": "string",
+                                        "content": "string",
+                                        "isSponsored": "boolean",
+                                        "status": "DRAFT | PUBLISHED | ARCHIVED",
+                                        "openedMailCount": "integer",
+                                        "views": "integer",
+                                        "authors": "array-author",
+                                        "tags": "array-tag",
+                                        "sponsors": "array-sponsor"
+                                }
+                        },
+                        "body": {
+                                "post": {
+                                        "schema": {
+                                                "slug": "string?",
+                                                "title": "string",
+                                                "subtitle": "string",
+                                                "issueNumber": "integer",
+                                                "excerpt": "string",
+                                                "content": "string",
+                                                "isSponsored": "boolean?",
+                                                "status": "DRAFT | PUBLISHED | ARCHIVED"
+                                        }
+                                },
+                                "put": {
+                                        "schema": {
+                                                "slug": "string?",
+                                                "title": "string",
+                                                "subtitle": "string",
+                                                "issueNumber": "integer",
+                                                "excerpt": "string",
+                                                "content": "string",
+                                                "isSponsored": "boolean?",
+                                                "status": "DRAFT | PUBLISHED | ARCHIVED"
+                                        }
+                                }
+                        }
+                },
+                {
+                        "name": {
+                                "singular": "issue tag",
+                                "plural": "issue tags"
+                        },
+                        "primaryKey": {
+                                "name": "tagId",
+                                "type": "integer",
+                                "defaultValue": 1
+                        },
+                        "uri": "/issue/{ID}/tag",
+                        "schema": {
+                                "tagId": "integer",
+                                "issueId": "integer"
+                        },
+                        "includedEndpoints": ["GET-list", "POST", "DELETE"]
+                },
+                {
+                        "name": {
+                                "singular": "issue author",
+                                "plural": "issue authors"
+                        },
+                        "primaryKey": {
+                                "name": "userId",
+                                "type": "integer",
+                                "defaultValue": 1
+                        },
+                        "uri": "/issue/{ID}/author",
+                        "schema": {
+                                "authorId": "integer",
+                                "issueId": "integer"
+                        },
+                        "includedEndpoints": ["GET-list", "POST", "DELETE"]
+                },
+                {
+                        "name": {
+                                "singular": "issue sponsor",
+                                "plural": "issue sponsors"
+                        },
+                        "primaryKey": {
+                                "name": "sponsorId",
+                                "type": "integer",
+                                "defaultValue": 1
+                        },
+                        "uri": "/issue/{ID}/sponsor",
+                        "schema": {
+                                "sponsorId": "integer",
+                                "issueId": "integer"
+                        },
+                        "includedEndpoints": ["GET-list", "POST", "DELETE"]
+                },
+                {
+                        "name": {
+                                "singular": "view",
+                                "plural": "views"
+                        },
+                        "primaryKey": {
+                                "name": "id",
+                                "type": "integer",
+                                "defaultValue": 1
+                        },
+                        "uri": "/view",
+                        "schema": {
+                                "id": "integer",
+                                "timestamp": "integer",
+                                "hashedIp": "string",
+                                "issueId": "integer"
+                        },
+                        "includedEndpoints": ["GET-list", "POST", "DELETE"]
+                }
+        ]
+}

@@ -1,0 +1,28 @@
+// COLORS
+$black: #0c0f12;
+$white: #f5f5fe;
+$whiteRGB: 245, 245, 254;
+
+$blue: #3984e5;
+$blue-dark: #226ac5;
+
+// BOX SHADOW
+$box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+$box-shadow-bold: 0 4px 30px rgba($blue-dark, 0.5);
+
+// SCREEN
+$screen-sm: 428px;
+$screen-md: 768px;
+$screen-lg: 1024px;
+$screen-xl: 1280px;
+$screen-2xl: 1536px;
+
+// PADDING
+$padding-body-x: 20px;
+$padding-body-y: 40px;
+
+// BORDER RADIUS
+$border-radius: 16px;
+
+// WIDTH
+$max-width-body: 1200px;

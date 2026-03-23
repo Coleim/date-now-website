@@ -1,0 +1,86 @@
+@use 'variables.scss';
+
+@mixin glass(
+	$blur: 30px,
+	$backgroundOpacity: 0.37,
+	$box-shadow: variables.$box-shadow,
+	$color: variables.$white
+) {
+	background: rgba($color, $backgroundOpacity);
+	box-shadow: $box-shadow;
+	backdrop-filter: blur($blur);
+	border-radius: variables.$border-radius;
+	border: 1px solid rgba($color, 0.5);
+}
+
+@mixin sm {
+	@media screen and (max-width: variables.$screen-sm) {
+		@content;
+	}
+}
+
+@mixin md {
+	@media screen and (min-width: variables.$screen-md) {
+		@content;
+	}
+}
+
+@mixin lg {
+	@media screen and (min-width: variables.$screen-lg) {
+		@content;
+	}
+}
+
+@mixin xl {
+	@media screen and (min-width: variables.$screen-xl) {
+		@content;
+	}
+}
+
+@mixin xxl {
+	@media screen and (min-width: variables.$screen-2xl) {
+		@content;
+	}
+}
+
+@mixin screen($size) {
+	@media screen and (min-width: $size) {
+		@content;
+	}
+}
+
+@mixin sm-container {
+	@container (max-width: variables.$screen-sm) {
+		@content;
+	}
+}
+
+@mixin md-container {
+	@container (min-width: variables.$screen-md) {
+		@content;
+	}
+}
+
+@mixin lg-container {
+	@container (min-width: variables.$screen-lg) {
+		@content;
+	}
+}
+
+@mixin xl-container {
+	@container (min-width: variables.$screen-xl) {
+		@content;
+	}
+}
+
+@mixin xxl-container {
+	@container (min-width: variables.$screen-2xl) {
+		@content;
+	}
+}
+
+@mixin screen-container($size) {
+	@container (min-width: $size) {
+		@content;
+	}
+}
