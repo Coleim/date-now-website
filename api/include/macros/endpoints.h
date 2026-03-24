@@ -30,4 +30,10 @@
 		ERROR_REPLY_SQL; \
 	} \
 
+#define REQUIRED_BODY_PROPERTY(prop, message) offset = mg_json_get(msg->body, "$." prop, &length); \
+						       if(offset < 0) { \
+							       ERROR_REPLY_400(message); \
+							       fprintf(stderr, TERMINAL_ERROR_MESSAGE(prop "REQUIRED")); \
+							       return; \
+						       }
 

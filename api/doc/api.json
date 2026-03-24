@@ -91,6 +91,9 @@
                                 "color": "string"
                         },
                         "body": {
+                                "post": {
+                                        "defaultValue": "{\n\t\"name\": \"Computer Science\",\n\t\"color\": \"#6b3a9e\"\n}"
+                                },
                                 "put": {
                                         "schema": { "color": "string" },
                                         "defaultValue": "{\n\t\"color\": \"#123456\"\n}"

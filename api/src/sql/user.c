@@ -19,29 +19,30 @@ int user_exists(int id) {
 
 	char *query_tmp = "SELECT COUNT(*) FROM User WHERE id = ?;";
 
-	sqlite3_stmt *stmt_count;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt_count, NULL);
+	sqlite3_stmt *stmt = NULL;
+	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
 
 	// Binding
-	sqlite3_bind_int(stmt_count, 1, id);
+	sqlite3_bind_int(stmt, 1, id);
 
-	GET_EXPANDED_QUERY(stmt_count);
+	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt_count);
+	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
 	while(query_rc != SQLITE_DONE) {
-		if(sqlite3_column_type(stmt_count, 0) == SQLITE_INTEGER) {
-			users_count = sqlite3_column_int(stmt_count, 0);
+		if(sqlite3_column_type(stmt, 0) == SQLITE_INTEGER) {
+			users_count = sqlite3_column_int(stmt, 0);
 		}
 
-		query_rc = sqlite3_step(stmt_count);
+		query_rc = sqlite3_step(stmt);
 	}
 
-	sqlite3_finalize(stmt_count);
+	sqlite3_finalize(stmt);
 
 	return users_count > 0;
 }
@@ -57,30 +58,31 @@ int user_email_exists(char *username, char *email) {
 
 	char *query_tmp = "SELECT COUNT(*) FROM User WHERE username = ? OR email = ?;";
 
-	sqlite3_stmt *stmt_count;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt_count, NULL);
+	sqlite3_stmt *stmt = NULL;
+	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
 
 	// Binding
-	sqlite3_bind_text(stmt_count, 1, username, -1, SQLITE_STATIC);
-	sqlite3_bind_text(stmt_count, 2, email, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 2, email, -1, SQLITE_STATIC);
 
-	GET_EXPANDED_QUERY(stmt_count);
+	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt_count);
+	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
 	while(query_rc != SQLITE_DONE) {
-		if(sqlite3_column_type(stmt_count, 0) == SQLITE_INTEGER) {
-			users_count = sqlite3_column_int(stmt_count, 0);
+		if(sqlite3_column_type(stmt, 0) == SQLITE_INTEGER) {
+			users_count = sqlite3_column_int(stmt, 0);
 		}
 
-		query_rc = sqlite3_step(stmt_count);
+		query_rc = sqlite3_step(stmt);
 	}
 
-	sqlite3_finalize(stmt_count);
+	sqlite3_finalize(stmt);
 
 	return users_count > 0;
 }
@@ -108,32 +110,33 @@ int get_users_len(const struct mg_str *q) {
 
 	int users_count = 0;
 
-	sqlite3_stmt *stmt_count;
-	sqlite3_prepare_v2(db, query, -1, &stmt_count, NULL);
+	sqlite3_stmt *stmt = NULL;
+	sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
 
 	// Binding
 	if(q_str != NULL) {
-		sqlite3_bind_text(stmt_count, 100, q_str, -1, SQLITE_STATIC);
+		sqlite3_bind_text(stmt, 100, q_str, -1, SQLITE_STATIC);
 	}
 
-	GET_EXPANDED_QUERY(stmt_count);
+	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt_count);
+	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		free(q_str);
 		return query_rc;
 	}
 
 	while(query_rc != SQLITE_DONE) {
-		if(sqlite3_column_type(stmt_count, 0) == SQLITE_INTEGER) {
-			users_count = sqlite3_column_int(stmt_count, 0);
+		if(sqlite3_column_type(stmt, 0) == SQLITE_INTEGER) {
+			users_count = sqlite3_column_int(stmt, 0);
 		}
 
-		query_rc = sqlite3_step(stmt_count);
+		query_rc = sqlite3_step(stmt);
 	}
 
-	sqlite3_finalize(stmt_count);
+	sqlite3_finalize(stmt);
 	free(q_str);
 	free(query);
 
@@ -146,7 +149,7 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 	char *query_tmp = "SELECT "
 		"u.id, u.username, u.email, u.role, u.link, UNIXEPOCH(u.subscribedAt), u.isSupporter, UNIXEPOCH(u.createdAt), m.id, m.textAlternatif, m.url, m.width, m.height "
 		"FROM User u LEFT JOIN Media m ON m.id = u.picture";
-	char *query_params_tmp = " WHERE username LIKE ?100 OR email LIKE ?100 OR link LIKE ?100";
+	char *query_params_tmp = " WHERE u.username LIKE ?100 OR u.email LIKE ?100 OR u.link LIKE ?100";
 	char *query_sort_tmp = " ORDER BY u.username ?101";
 	char *query_pagination_tmp = " LIMIT ?102 OFFSET ?103";
 
@@ -183,7 +186,7 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 	}
 	strcat(query, ";");
 
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt = NULL;
 	sqlite3_prepare_v2(
 			db,
 			query,
@@ -211,6 +214,7 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		free(q_str);
 		free(sort_str);
 		return query_rc;
@@ -224,6 +228,7 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 		int user_init_rc = user_init(u);
 		if(user_init_rc != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("The user is NULL"));
+			sqlite3_finalize(stmt);
 			free(q_str);
 			free(sort_str);
 			return HTTP_INTERNAL_ERROR;
@@ -278,7 +283,7 @@ int get_user(struct user *user, int id) {
 		"FROM User u LEFT JOIN Media m ON m.id = u.picture "
 		"WHERE u.id = ?;";
 
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt = NULL;
 	sqlite3_prepare_v2(
 			db,
 			query_tmp,
@@ -295,15 +300,18 @@ int get_user(struct user *user, int id) {
 	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 	else if(query_rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return HTTP_NOT_FOUND;
 	}
 
 	while(query_rc == SQLITE_ROW) {
 		int user_init_rc = user_init(user);
 		if(user_init_rc != 0) {
+			sqlite3_finalize(stmt);
 			fprintf(stderr, "The user is NULL\n");
 			return HTTP_INTERNAL_ERROR;
 		}
@@ -344,7 +352,7 @@ int add_user(struct user *user) {
 		"INSERT INTO User (username, email, role, link)"
 		"VALUES (?, ?, COALESCE(?, 'USER'), ?);";
 
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt = NULL;
 	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
 
 	// Binding
@@ -358,6 +366,7 @@ int add_user(struct user *user) {
 	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -374,7 +383,7 @@ int edit_user(struct user *user) {
 		"SET username = ?, email = ?, role = COALESCE(?, 'USER'), link = ?, isSupporter = ? "
 		"WHERE id = ?;";
 
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt = NULL;
 	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
 
 	// Binding
@@ -390,6 +399,7 @@ int edit_user(struct user *user) {
 	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -405,7 +415,7 @@ int delete_user(int id) {
 		"DELETE FROM User "
 		"WHERE id = ?;";
 
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt = NULL;
 	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
 
 	// Binding
@@ -416,6 +426,7 @@ int delete_user(int id) {
 	int query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 

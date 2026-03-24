@@ -19,7 +19,7 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 	error_reply = malloc(sizeof(struct error_reply));
 
 	if(mg_match(msg->method, mg_str("GET"), NULL)) {
-		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET AUTHOR LIST ==="));
+		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET USER LIST ==="));
 
 		// Query params
 		const struct mg_str q = mg_http_var(msg->query, mg_str("q"));
@@ -92,7 +92,7 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 		list_reply_to_json(reply);
 
 		mg_http_reply(c, 200, JSON_HEADER, "%s\n", reply->json);
-		printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHORS SUCCESSFULLY SENT ==="));
+		printf(TERMINAL_SUCCESS_MESSAGE("=== USERS SUCCESSFULLY SENT ==="));
 
 		if(reply->count > 0) {
 			free_users(users, reply->count);
@@ -174,8 +174,8 @@ void send_users_res(struct mg_connection *c, struct mg_http_message *msg, struct
 			return;
 		}
 		else {
-			mg_http_reply(c, 201, JSON_HEADER, "{ \"message\": \"Author successfully created\" }");
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY ADDED ==="));
+			mg_http_reply(c, 201, JSON_HEADER, "{ \"message\": \"User successfully created\" }");
+			printf(TERMINAL_SUCCESS_MESSAGE("=== USER SUCCESSFULLY ADDED ==="));
 		}
 
 		free_user(user);
@@ -190,7 +190,7 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 	error_reply = malloc(sizeof(struct error_reply));
 
 	if(mg_match(msg->method, mg_str("GET"), NULL)) {
-		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET AUTHOR ==="));
+		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET USER ==="));
 
 		struct user *user = NULL;
 		user = malloc(sizeof(struct user));
@@ -207,7 +207,7 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			char *result = user_to_json(user);
 
 			mg_http_reply(c, 200, JSON_HEADER, "%s\n", result);
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY SENT ==="));
+			printf(TERMINAL_SUCCESS_MESSAGE("=== USER SUCCESSFULLY SENT ==="));
 		}
 
 		free_user(user);
@@ -288,8 +288,8 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			return;
 		}
 		else {
-			mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Author successfully edited\" }");
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY EDITED ==="));
+			mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"User successfully edited\" }");
+			printf(TERMINAL_SUCCESS_MESSAGE("=== USER SUCCESSFULLY EDITED ==="));
 		}
 
 		free_user(user);
@@ -310,8 +310,8 @@ void send_user_res(struct mg_connection *c, struct mg_http_message *msg, int id,
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("COULDN'T DELETE USER"));
 		}
 
-		printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY DELETE ==="));
-		mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Author successfully deleted\" }");
+		printf(TERMINAL_SUCCESS_MESSAGE("=== USER SUCCESSFULLY DELETE ==="));
+		mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"User successfully deleted\" }");
 	}
 	else {
 		ERROR_REPLY_405;

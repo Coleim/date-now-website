@@ -5,7 +5,10 @@
 #include <lib/mongoose.h>
 #include <lib/sqlite3.h>
 #include <structs.h>
+#include <utils.h>
+#include <macros/colors.h>
 #include <endpoints/user.h>
+#include <endpoints/tag.h>
 
 sqlite3 *db;
 
@@ -51,14 +54,11 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 				struct mg_str tag_cap[2];
 
 				if(mg_match(endpoint_cap[0], mg_str("tag/*"), tag_cap)) {
-					int id;
-					int id_parsed = mg_str_to_num(tag_cap[0], 10, &id, sizeof(int));
-					if(!id_parsed) {
-						mg_http_reply(c, 400, "Content-Type: application/json\r\n", "{ \"code\": 400, \"error\": \"ID is not a number.\" }");
-						return;
-					}
+					char *name = malloc(tag_cap[0].len + 1);
+					mg_str_to_str(name, tag_cap[0]);
 
-					send_tag_res(c, http_msg, id, error_reply);
+					send_tag_res(c, http_msg, name, error_reply);
+					free(name);
 				}
 				else if(mg_strcmp(endpoint_cap[0], mg_str("tag")) == 0) {
 					send_tags_res(c, http_msg, error_reply);
@@ -82,7 +82,14 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 }
 
 int main() {
-	printf("DB - opening...\n" );
+	printf("\n\n");
+	printf(ANSI_COLOR_RGB(221, 36, 118) " ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ " ANSI_RESET_ALL "\n");
+	printf(ANSI_COLOR_RGB(231, 50, 97) "||D |||A |||T |||E |||. |||N |||O |||W |||( |||) ||" ANSI_RESET_ALL "\n");
+	printf(ANSI_COLOR_RGB(246, 69, 67) "||__|||__|||__|||__|||__|||__|||__|||__|||__|||__||" ANSI_RESET_ALL "\n");
+	printf(ANSI_COLOR_RGB(255, 81, 47) "|/__\\|/__\\|/__\\|/__\\|/__\\|/__\\|/__\\|/__\\|/__\\|/__\\|" ANSI_RESET_ALL "\n");
+	printf("\n\n");
+
+	printf("===\tDB - opening...\t===\n" );
 
 	int atexit_return_code = atexit(clean_db);
 	if(atexit_return_code != 0) {
@@ -99,7 +106,7 @@ int main() {
 		return EXIT_FAILURE;
 	}
 
-	printf("DB - successfully opened!\n");
+	printf("===\tDB - successfully opened!\t===\n");
 
 	struct mg_mgr mgr;
 	mg_log_set(MG_LL_DEBUG);

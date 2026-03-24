@@ -10,14 +10,16 @@
 #include <macros/colors.h>
 #include <macros/endpoints.h>
 
-#define USER_EXISTS_MESSAGE "The tag already exists."
+#define TAG_EXISTS_MESSAGE "The tag already exists."
+#define NAME_REQUIRED_MESSAGE "The name is required."
+#define COLOR_REQUIRED_MESSAGE "The color is required."
 
 void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct error_reply *error_reply) {
 	int query_code;
 	error_reply = malloc(sizeof(struct error_reply));
 
 	if(mg_match(msg->method, mg_str("GET"), NULL)) {
-		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET AUTHOR LIST ==="));
+		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET TAG LIST ==="));
 
 		// Query params
 		const struct mg_str q = mg_http_var(msg->query, mg_str("q"));
@@ -25,7 +27,7 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 		printf("QUERY PARAMS:\tQUERY - %.*s\t|\tSORT - %.*s\n", (int)q.len, q.buf, (int)sort.len, sort.buf);
 
 		// Pagination
-		int page, page_size;
+		int page, page_size = 0;
 		struct mg_str page_str = mg_http_var(msg->query, mg_str("page"));
 		if(mg_str_to_num(page_str, 10, &page, sizeof(int)) == false) page = -1;
 		else  {
@@ -76,7 +78,7 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 			query_code = get_tags(reply->count, tags, &q, &sort, reply->page, reply->page_size);
 
 			if(query_code != 0) {
-				fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
+				fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING TAGS"));
 				HANDLE_QUERY_CODE;
 
 				free(reply->data);
@@ -90,7 +92,7 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 		list_reply_to_json(reply);
 
 		mg_http_reply(c, 200, JSON_HEADER, "%s\n", reply->json);
-		printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHORS SUCCESSFULLY SENT ==="));
+		printf(TERMINAL_SUCCESS_MESSAGE("=== TAGS SUCCESSFULLY SENT ==="));
 
 		if(reply->count > 0) {
 			free_tags(tags, reply->count);
@@ -103,60 +105,26 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 		// Body validation
 		int offset, length;
 
-		// Email required
-		offset = mg_json_get(msg->body, "$.email", &length);
-		if(offset < 0) {
-			ERROR_REPLY_400(EMAIL_REQUIRED_MESSAGE);
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("EMAIL REQUIRED"));
+		// Required props
+		REQUIRED_BODY_PROPERTY("color", COLOR_REQUIRED_MESSAGE);
+		REQUIRED_BODY_PROPERTY("name", NAME_REQUIRED_MESSAGE);
+
+		char *name = malloc(length);
+		strncpy(name, msg->body.buf + offset+1, length-2);
+
+		int exists = tag_exists(name);
+		if(exists != 0) {
+			ERROR_REPLY_400(TAG_EXISTS_MESSAGE);
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("TAG ALREADY EXISTS"));
 			return;
-		}
-		else {
-			// Email and tagname not existing already
-			char *email = malloc(length);
-			strncpy(email, msg->body.buf + offset+1, length-2);
-
-			char *tagname = NULL;
-			offset = mg_json_get(msg->body, "$.tagname", &length);
-			if(offset >= 0) {
-				tagname = malloc(length);
-				strncpy(tagname, msg->body.buf + offset+1, length-2);
-			}
-
-			int exists = tag_email_exists(tagname, email);
-			if(exists != 0) {
-				ERROR_REPLY_400(USER_EXISTS_MESSAGE);
-				fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER ALREADY EXISTS"));
-				return;
-			};
-		}
-
-		// Check Role value
-		offset = mg_json_get(msg->body, "$.role", &length);
-		char role[10];
-		if(length > 10) {
-			ERROR_REPLY_400(ROLE_FORMAT_MESSAGE);
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG ROLE"));
-
-			return;
-		}
-		if(offset >= 0) {
-			strncpy(role, msg->body.buf + offset+1, length-2);
-			role[length-2] = '\0';
-
-			if(strcmp(role, "USER") != 0 && strcmp(role, "AUTHOR") != 0) {
-				ERROR_REPLY_400(ROLE_FORMAT_MESSAGE);
-				fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG ROLE"));
-
-				return;
-			}
-		}
+		};
 
 		// Hydrate
 		struct tag *tag = malloc(sizeof(struct tag));
 		int tag_init_rc = tag_init(tag);
 		if(tag_init_rc != 0) {
 			ERROR_REPLY_500;
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER IS NULL"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("TAG IS NULL"));
 
 			return;
 		}
@@ -166,14 +134,14 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 		// Store in DB
 		query_code = add_tag(tag);
 		if(query_code != 0) {
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING TAGS"));
 			HANDLE_QUERY_CODE;
 
 			return;
 		}
 		else {
-			mg_http_reply(c, 201, JSON_HEADER, "{ \"message\": \"Author successfully created\" }");
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY ADDED ==="));
+			mg_http_reply(c, 201, JSON_HEADER, "{ \"message\": \"Tag successfully created\" }");
+			printf(TERMINAL_SUCCESS_MESSAGE("=== TAG SUCCESSFULLY ADDED ==="));
 		}
 
 		free_tag(tag);
@@ -183,20 +151,28 @@ void send_tags_res(struct mg_connection *c, struct mg_http_message *msg, struct 
 	}
 }
 
-void send_tag_res(struct mg_connection *c, struct mg_http_message *msg, int id, struct error_reply *error_reply) {
+void send_tag_res(struct mg_connection *c, struct mg_http_message *msg, char *name, struct error_reply *error_reply) {
 	int query_code;
 	error_reply = malloc(sizeof(struct error_reply));
 
 	if(mg_match(msg->method, mg_str("GET"), NULL)) {
-		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET AUTHOR ==="));
+		printf(TERMINAL_ENDPOINT_MESSAGE("=== GET TAG ==="));
+
+		// Check if exists
+		int exists = tag_exists(name);
+		if(!exists) {
+			ERROR_REPLY_404;
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("TAG NOT FOUND"));
+			return;
+		}
 
 		struct tag *tag = NULL;
 		tag = malloc(sizeof(struct tag));
 
-		query_code = get_tag(tag, id);
+		query_code = get_tag(tag, name);
 
 		if(query_code != 0) {
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USER"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING TAG"));
 			HANDLE_QUERY_CODE;
 
 			return;
@@ -205,111 +181,73 @@ void send_tag_res(struct mg_connection *c, struct mg_http_message *msg, int id, 
 			char *result = tag_to_json(tag);
 
 			mg_http_reply(c, 200, JSON_HEADER, "%s\n", result);
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY SENT ==="));
+			printf(TERMINAL_SUCCESS_MESSAGE("=== TAG SUCCESSFULLY SENT ==="));
 		}
 
 		free_tag(tag);
 	}
 	else if (mg_match(msg->method, mg_str("PUT"), NULL)) {
-		// Hydrate
 		struct tag *tag = malloc(sizeof(struct tag));
 
 		// Check if exists
-		int exists = tag_exists(id);
+		int exists = tag_exists(name);
 		if(!exists) {
 			ERROR_REPLY_404;
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER NOT FOUND"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("TAG NOT FOUND"));
 			return;
 		}
 
 		int offset, length;
 
-		// Email required
-		offset = mg_json_get(msg->body, "$.email", &length);
-		if(offset >= 0) {
-			// Email and tagname not existing already
-			char *email = malloc(length);
-			strncpy(email, msg->body.buf + offset+1, length-2);
+		// Required props
+		REQUIRED_BODY_PROPERTY("color", COLOR_REQUIRED_MESSAGE);
 
-			char *tagname = NULL;
-			offset = mg_json_get(msg->body, "$.tagname", &length);
-			if(offset >= 0) {
-				tagname = malloc(length);
-				strncpy(tagname, msg->body.buf + offset+1, length-2);
-			}
-
-			int exists = tag_email_exists(tagname, email);
-			if(exists != 0) {
-				ERROR_REPLY_400(USER_EXISTS_MESSAGE);
-				fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER ALREADY EXISTS"));
-				return;
-			};
-		}
-
-		// Check Role value
-		offset = mg_json_get(msg->body, "$.role", &length);
-		char role[10];
-		if(length > 10) {
-			ERROR_REPLY_400(ROLE_FORMAT_MESSAGE);
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG ROLE"));
-
-			return;
-		}
-		if(offset >= 0) {
-			strncpy(role, msg->body.buf + offset+1, length-2);
-			role[length-2] = '\0';
-
-			if(strcmp(role, "USER") != 0 && strcmp(role, "AUTHOR") != 0) {
-				ERROR_REPLY_400(ROLE_FORMAT_MESSAGE);
-				fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG ROLE"));
-				return;
-			}
-		}
-
-		query_code = get_tag(tag, id);
+		// Retrieve actual values of tag
+		query_code = get_tag(tag, name);
 		if(query_code != 0) {
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING TAGS"));
 			HANDLE_QUERY_CODE;
 
 			return;
 		}
 
+		// Hydrate
 		tag_hydrate(msg, tag);
-		tag->id = id;
+		tag->name = name;
 
 		// Store in DB
 		query_code = edit_tag(tag);
 		if(query_code != 0) {
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING USERS"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("ERROR RETRIEVING TAGS"));
 			HANDLE_QUERY_CODE;
 
 			return;
 		}
 		else {
-			mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Author successfully edited\" }");
-			printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY EDITED ==="));
+			mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Tag successfully edited\" }");
+			printf(TERMINAL_SUCCESS_MESSAGE("=== TAG SUCCESSFULLY EDITED ==="));
 		}
 
 		free_tag(tag);
 	}
 	else if (mg_match(msg->method, mg_str("DELETE"), NULL)) {
 		// Check if exists
-		int exists = tag_exists(id);
+		int exists = tag_exists(name);
 		if(!exists) {
 			ERROR_REPLY_404;
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("USER NOT FOUND"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("TAG NOT FOUND"));
 
 			return;
 		}
 
-		int delete_rc = delete_tag(id);
+		int delete_rc = delete_tag(name);
 		if(delete_rc != 0) {
 			ERROR_REPLY_500;
-			fprintf(stderr, TERMINAL_ERROR_MESSAGE("COULDN'T DELETE USER"));
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("COULDN'T DELETE TAG"));
 		}
 
-		printf(TERMINAL_SUCCESS_MESSAGE("=== AUTHOR SUCCESSFULLY DELETE ==="));
-		mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Author successfully deleted\" }");
+		printf(TERMINAL_SUCCESS_MESSAGE("=== TAG SUCCESSFULLY DELETE ==="));
+		mg_http_reply(c, 200, JSON_HEADER, "{ \"message\": \"Tag successfully deleted\" }");
 	}
 	else {
 		ERROR_REPLY_405;

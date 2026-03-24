@@ -4,7 +4,7 @@ CFLAGS := -I ./include/ -g
 includes := ./include
 src := ./src
 
-tables := user
+tables := user tag
 
 libs_o := obj/lib/mongoose.o obj/lib/sqlite3.o
 helpers_o := obj/utils.o

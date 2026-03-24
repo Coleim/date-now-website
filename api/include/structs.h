@@ -43,3 +43,8 @@ struct user {
 
 	int created_at;
 };
+
+struct tag {
+	char *name;
+	char *color;
+};
