@@ -145,28 +145,42 @@ int get_users_len(const struct mg_str *q) {
 
 int get_users(size_t len, struct user **arr, const struct mg_str *q, const struct mg_str *sort, int page, int page_size) {
 	printf(TERMINAL_SQL_MESSAGE("=== GET USERS SQL ==="));
+	int query_rc = SQLITE_ROW;
 
 	char *query_tmp = "SELECT "
 		"u.id, u.username, u.email, u.role, u.link, UNIXEPOCH(u.subscribedAt), u.isSupporter, UNIXEPOCH(u.createdAt), m.id, m.textAlternatif, m.url, m.width, m.height "
 		"FROM User u LEFT JOIN Media m ON m.id = u.picture";
 	char *query_params_tmp = " WHERE u.username LIKE ?100 OR u.email LIKE ?100 OR u.link LIKE ?100";
-	char *query_sort_tmp = " ORDER BY u.username ?101";
 	char *query_pagination_tmp = " LIMIT ?102 OFFSET ?103";
 
+	// Sort tmp
+	const char *sort_keyword = "ASC";
+	char *query_sort_tmp = NULL;
+	if(sort->len > 0) {
+		if (strncasecmp(sort->buf, "desc", sort->len) == 0) {
+			sort_keyword = "DESC";
+		} else if (strncasecmp(sort->buf, "asc", sort->len) == 0) {
+			sort_keyword = "ASC";
+		} else {
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG VALUE FOR SORTING"));
+			return HTTP_BAD_REQUEST;
+		}
+
+		query_sort_tmp = malloc(snprintf(NULL, 0, " ORDER BY u.username COLLATE NOCASE %s", sort_keyword) + 1);
+		sprintf(query_sort_tmp, " ORDER BY u.username COLLATE NOCASE %s", sort_keyword);
+	}
+
+	// Query search
 	char *q_str = NULL;
-	char *sort_str = NULL;
 
 	int query_len = strlen(query_tmp) + 2;
 	if(q->len > 0) {
-		q_str = malloc(q->len+2);
+		q_str = malloc(q->len+3);
 		sprintf(q_str, "%%%.*s%%", (int)q->len, q->buf);
 
 		query_len += strlen(query_params_tmp);
 	}
 	if(sort->len > 0) {
-		sort_str = malloc(sort->len);
-		sprintf(sort_str, "%.*s", (int)sort->len, sort->buf);
-
 		query_len += strlen(query_sort_tmp);
 	}
 	if(page > 0) {
@@ -178,29 +192,33 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 	if(q_str != NULL) {
 		strcat(query, query_params_tmp);
 	}
-	if(sort_str != NULL) {
+	if(sort->len > 0) {
 		strcat(query, query_sort_tmp);
 	}
 	if(page > 0) {
 		strcat(query, query_pagination_tmp);
 	}
 	strcat(query, ";");
+	printf("%s\n", query);
+	free(query_sort_tmp);
 
 	sqlite3_stmt *stmt = NULL;
-	sqlite3_prepare_v2(
+	query_rc = sqlite3_prepare_v2(
 			db,
 			query,
 			-1,
 			&stmt,
 			NULL
 			);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+		free(q_str);
+	}
 
 	// Binding
 	if(q_str != NULL) {
 		sqlite3_bind_text(stmt, 100, q_str, -1, SQLITE_STATIC);
-	}
-	if(sort_str != NULL) {
-		sqlite3_bind_text(stmt, 101, sort_str, -1, SQLITE_STATIC);
 	}
 	if(page > 0) {
 		int offset = (page - 1) * page_size;
@@ -211,12 +229,11 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
 		sqlite3_finalize(stmt);
 		free(q_str);
-		free(sort_str);
 		return query_rc;
 	}
 
@@ -230,7 +247,6 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("The user is NULL"));
 			sqlite3_finalize(stmt);
 			free(q_str);
-			free(sort_str);
 			return HTTP_INTERNAL_ERROR;
 		}
 
@@ -267,7 +283,6 @@ int get_users(size_t len, struct user **arr, const struct mg_str *q, const struc
 
 	sqlite3_finalize(stmt);
 	free(q_str);
-	free(sort_str);
 
 	return 0;
 }

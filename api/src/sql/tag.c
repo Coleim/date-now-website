@@ -16,8 +16,8 @@
 	"name, color " \
 	"FROM Tag"
 #define QUERY_SELECT_SINGLE_TMP QUERY_SELECT_TMP " WHERE name = ?"
-#define QUERY_Q_TMP " WHERE tagname LIKE ?100 OR email LIKE ?100 OR link LIKE ?100"
-#define QUERY_SORT_TMP " ORDER BY ?101"
+#define QUERY_Q_TMP " WHERE name LIKE ?100 OR color LIKE ?100"
+#define QUERY_SORT_TMP " ORDER BY name COLLATE NOCASE %s"
 #define QUERY_PAGINATION_TMP " LIMIT ?102 OFFSET ?103"
 
 #define QUERY_POST_TMP "INSERT INTO Tag (name, color) "\
@@ -32,21 +32,29 @@ extern sqlite3 *db;
 int tag_exists(char *name) {
 	printf(TERMINAL_SQL_MESSAGE("=== TAG_EXISTS SQL ==="));
 
+	int query_rc = SQLITE_ROW;
 	int tags_count = 0;
 
 	char *query_tmp = QUERY_EXISTS_TMP ";";
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	query_rc = sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+
+		return query_rc;
+	}
 
 	// Binding
 	sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -65,6 +73,8 @@ int tag_exists(char *name) {
 
 int get_tags_len(const struct mg_str *q) {
 	printf(TERMINAL_SQL_MESSAGE("=== GET TAGS COUNT SQL ==="));
+
+	int query_rc = SQLITE_ROW;
 
 	char *q_str = NULL;
 
@@ -88,7 +98,14 @@ int get_tags_len(const struct mg_str *q) {
 	int tags_count = 0;
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+	query_rc = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+		free(q_str);
+
+		return query_rc;
+	}
 
 	// Binding
 	if(q_str != NULL) {
@@ -97,10 +114,11 @@ int get_tags_len(const struct mg_str *q) {
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
 		free(q_str);
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -122,13 +140,30 @@ int get_tags_len(const struct mg_str *q) {
 int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct mg_str *sort, int page, int page_size) {
 	printf(TERMINAL_SQL_MESSAGE("=== GET TAGS SQL ==="));
 
+	int query_rc = SQLITE_ROW;
+
 	char *query_tmp = QUERY_SELECT_TMP;
 	char *query_params_tmp = QUERY_Q_TMP;
-	char *query_sort_tmp = QUERY_SORT_TMP;
 	char *query_pagination_tmp = QUERY_PAGINATION_TMP;
 
+	// Sort tmp
+	const char *sort_keyword = "ASC";
+	char *query_sort_tmp = NULL;
+	if(sort->len > 0) {
+		if (strncasecmp(sort->buf, "desc", sort->len) == 0) {
+			sort_keyword = "DESC";
+		} else if (strncasecmp(sort->buf, "asc", sort->len) == 0) {
+			sort_keyword = "ASC";
+		} else {
+			fprintf(stderr, TERMINAL_ERROR_MESSAGE("WRONG VALUE FOR SORTING"));
+			return HTTP_BAD_REQUEST;
+		}
+
+		query_sort_tmp = malloc(snprintf(NULL, 0, QUERY_SORT_TMP, sort_keyword) + 1);
+		sprintf(query_sort_tmp, QUERY_SORT_TMP, sort_keyword);
+	}
+
 	char *q_str = NULL;
-	char *sort_str = NULL;
 
 	int query_len = strlen(query_tmp) + 2;
 	if(q->len > 0) {
@@ -138,9 +173,6 @@ int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct 
 		query_len += strlen(query_params_tmp);
 	}
 	if(sort->len > 0) {
-		sort_str = malloc(sort->len);
-		sprintf(sort_str, "%.*s", (int)sort->len, sort->buf);
-
 		query_len += strlen(query_sort_tmp);
 	}
 	if(page > 0) {
@@ -149,32 +181,37 @@ int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct 
 
 	char *query = malloc(query_len);
 	strcpy(query, query_tmp);
-	if(q_str != NULL) {
+	if(q->len > 0) {
 		strcat(query, query_params_tmp);
 	}
-	if(sort_str != NULL) {
+	if(sort->len > 0) {
 		strcat(query, query_sort_tmp);
 	}
 	if(page > 0) {
 		strcat(query, query_pagination_tmp);
 	}
 	strcat(query, ";");
+	free(query_sort_tmp);
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(
+	query_rc = sqlite3_prepare_v2(
 			db,
 			query,
 			-1,
 			&stmt,
 			NULL
 			);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+		free(q_str);
+
+		return query_rc;
+	}
 
 	// Binding
-	if(q_str != NULL) {
+	if(q->len > 0) {
 		sqlite3_bind_text(stmt, 100, q_str, -1, SQLITE_STATIC);
-	}
-	if(sort_str != NULL) {
-		sqlite3_bind_text(stmt, 101, sort_str, -1, SQLITE_STATIC);
 	}
 	if(page > 0) {
 		int offset = (page - 1) * page_size;
@@ -185,11 +222,11 @@ int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct 
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		free(q_str);
-		free(sort_str);
 		return query_rc;
 	}
 
@@ -202,7 +239,6 @@ int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct 
 		if(tag_init_rc != 0) {
 			fprintf(stderr, TERMINAL_ERROR_MESSAGE("The tag is NULL"));
 			free(q_str);
-			free(sort_str);
 			return HTTP_INTERNAL_ERROR;
 		}
 
@@ -230,7 +266,6 @@ int get_tags(size_t len, struct tag **arr, const struct mg_str *q, const struct 
 
 	sqlite3_finalize(stmt);
 	free(q_str);
-	free(sort_str);
 
 	return 0;
 }
@@ -242,28 +277,38 @@ int get_tag(struct tag *tag, char *name) {
 
 	printf(TERMINAL_SQL_MESSAGE("=== GET TAG SQL ==="));
 
+	int query_rc = SQLITE_ROW;
+
 	char *query_tmp = QUERY_SELECT_SINGLE_TMP ";";
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(
+	query_rc = sqlite3_prepare_v2(
 			db,
 			query_tmp,
 			-1,
 			&stmt,
 			NULL
 			);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+
+		return query_rc;
+	}
 
 	// Binding
 	sqlite3_bind_text(stmt, 1, tag->name, -1, SQLITE_STATIC);
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 	else if(query_rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return HTTP_NOT_FOUND;
 	}
 
@@ -297,10 +342,18 @@ int get_tag(struct tag *tag, char *name) {
 int add_tag(struct tag *tag) {
 	printf(TERMINAL_SQL_MESSAGE("=== ADD TAG SQL ==="));
 
+	int query_rc = SQLITE_ROW;
+
 	char *query_tmp = QUERY_POST_TMP;
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	query_rc = sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+
+		return query_rc;
+	}
 
 	// Binding
 	sqlite3_bind_text(stmt, 1, tag->name, -1, SQLITE_STATIC);
@@ -308,9 +361,10 @@ int add_tag(struct tag *tag) {
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -322,10 +376,18 @@ int add_tag(struct tag *tag) {
 int edit_tag(struct tag *tag) {
 	printf(TERMINAL_SQL_MESSAGE("=== EDIT TAG SQL ==="));
 
+	int query_rc = SQLITE_ROW;
+
 	char *query_tmp = QUERY_PUT_TMP;
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	query_rc = sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+
+		return query_rc;
+	}
 
 	// Binding
 	sqlite3_bind_text(stmt, 1, tag->name, -1, SQLITE_STATIC);
@@ -333,9 +395,10 @@ int edit_tag(struct tag *tag) {
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 
@@ -347,19 +410,28 @@ int edit_tag(struct tag *tag) {
 int delete_tag(char *name) {
 	printf(TERMINAL_SQL_MESSAGE("=== DELETE TAG SQL ==="));
 
+	int query_rc = SQLITE_ROW;
+
 	char *query_tmp = QUERY_DELETE_TMP;
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	query_rc = sqlite3_prepare_v2(db, query_tmp, -1, &stmt, NULL);
+	if (query_rc != SQLITE_OK) {
+		fprintf(stderr, TERMINAL_ERROR_MESSAGE("prepare error: %s\n"), sqlite3_errmsg(db));
+		sqlite3_finalize(stmt);
+
+		return query_rc;
+	}
 
 	// Binding
 	sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
 
 	GET_EXPANDED_QUERY(stmt);
 
-	int query_rc = sqlite3_step(stmt);
+	query_rc = sqlite3_step(stmt);
 
 	if(query_rc != SQLITE_ROW && query_rc != SQLITE_DONE) {
+		sqlite3_finalize(stmt);
 		return query_rc;
 	}
 

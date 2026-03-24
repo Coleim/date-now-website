@@ -74,7 +74,6 @@ void error_reply_to_json(struct error_reply *err) {
 
 	err->json = malloc(len);
 	sprintf(err->json, ERROR_REPLY_JSON, err->code, err->message);
-	printf("%s - %ld\n", err->json, len);
 }
 
 void list_reply_to_json(struct list_reply *reply) {
