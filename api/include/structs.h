@@ -86,3 +86,10 @@ struct issue_sponsor {
   int issue_id;
   char *link;
 };
+
+struct view {
+  int id;
+  int timestamp;
+  char *hashed_ip;
+  int issue_id;
+};

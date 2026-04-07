@@ -5,6 +5,7 @@
 #include <endpoints/sponsor.h>
 #include <endpoints/tag.h>
 #include <endpoints/user.h>
+#include <endpoints/view.h>
 #include <lib/mongoose.h>
 #include <lib/sqlite3.h>
 #include <macros/colors.h>
@@ -96,8 +97,9 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 
         return;
       } else if (mg_strcmp(endpoint_cap[0], mg_str("view")) >= 0) {
-        struct mg_str caps[2];
-        printf("views \n");
+        if (mg_strcmp(endpoint_cap[0], mg_str("view")) == 0) {
+          send_views_res(c, http_msg, error_reply);
+        }
 
         return;
       } else if (mg_strcmp(endpoint_cap[0], mg_str("issue")) >= 0) {

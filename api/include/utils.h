@@ -20,6 +20,10 @@ size_t user_to_json_len(struct user *user);
 char *user_to_json(struct user *user);
 char *users_to_json(struct user **users, size_t len);
 
+size_t view_to_json_len(struct view *view);
+char *view_to_json(struct view *view);
+char *views_to_json(struct view **views, size_t len);
+
 size_t tag_to_json_len(struct tag *tag);
 char *tag_to_json(struct tag *tag);
 char *tags_to_json(struct tag **tags, size_t len);
@@ -47,6 +51,7 @@ char *issue_tags_to_json(struct issue_tag **issues, size_t len);
 /** FREE */
 int free_media(struct media *media);
 int free_user(struct user *user);
+int free_view(struct view *view);
 int free_issue(struct issue *issue);
 int free_issue_author(struct issue_author *issue);
 int free_issue_sponsor(struct issue_sponsor *issue);
@@ -55,6 +60,7 @@ int free_tag(struct tag *tag);
 int free_sponsor(struct sponsor *sponsor);
 
 int free_users(struct user **user, size_t len);
+int free_views(struct view **view, size_t len);
 int free_issues(struct issue **issue, size_t len);
 int free_issue_authors(struct issue_author **issue, size_t len);
 int free_issue_sponsors(struct issue_sponsor **issue, size_t len);
@@ -68,6 +74,8 @@ int error_reply_map(struct error_reply *err, int code, char *message,
 int media_map(struct media *media, sqlite3_stmt *stmt, int start_index,
               int end_index);
 int user_map(struct user *user, sqlite3_stmt *stmt, int start_index,
+             int end_index);
+int view_map(struct view *view, sqlite3_stmt *stmt, int start_index,
              int end_index);
 int issue_map(struct issue *issue, sqlite3_stmt *stmt, int start_index,
               int end_index);
@@ -85,6 +93,7 @@ int issue_tag_map(struct issue_tag *issue, sqlite3_stmt *stmt, int start_index,
 
 /** HYDRATE */
 void user_hydrate(struct mg_http_message *msg, struct user *user);
+void view_hydrate(struct mg_http_message *msg, struct view *view);
 void issue_hydrate(struct mg_http_message *msg, struct issue *issue);
 void tag_hydrate(struct mg_http_message *msg, struct tag *tag);
 void sponsor_hydrate(struct mg_http_message *msg, struct sponsor *sponsor);
@@ -97,6 +106,7 @@ void issue_tag_hydrate(struct mg_http_message *msg, struct issue_tag *issue);
 
 /** INIT */
 int user_init(struct user *user);
+int view_init(struct view *view);
 int issue_init(struct issue *issue);
 int tag_init(struct tag *tag);
 int sponsor_init(struct sponsor *sponsor);

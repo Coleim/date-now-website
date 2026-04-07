@@ -325,8 +325,7 @@
                         },
                         "includedEndpoints": [
                                 "GET-list",
-                                "POST",
-                                "DELETE"
+                                "POST"
                         ]
                 }
         ]
