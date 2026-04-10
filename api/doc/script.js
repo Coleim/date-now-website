@@ -213,6 +213,7 @@ const handleFetch = (
 	fetchContainer,
 	dataContainer,
 	queryParameters,
+	tokenRequired,
 ) => {
 	let updatedURI = uri;
 
@@ -254,6 +255,14 @@ const handleFetch = (
 		});
 	}
 
+	const headers = { "Content-Type": "application/json" };
+	if (tokenRequired) {
+		const token = sessionStorage.getItem("token");
+
+		headers.Authorization = `Bearer ${token}`;
+	}
+	console.log(headers);
+
 	let body;
 	if (method === "POST" || method === "PUT") {
 		body = fetchContainer.querySelector("textarea").value || "";
@@ -261,7 +270,7 @@ const handleFetch = (
 
 	appendFetchedEndpointData(dataContainer, updatedURI, method, {
 		body,
-		headers: { "Content-Type": "application/json" },
+		headers,
 	});
 };
 
@@ -289,6 +298,8 @@ const getEndpointNode = (endpoint) => {
 	title.innerHTML = name;
 	header.appendChild(title);
 
+	console.log(title.innerHTML);
+
 	const methodTag = document.createElement("p");
 	methodTag.innerHTML = method;
 	methodTag.classList.add("tag");
@@ -300,7 +311,7 @@ const getEndpointNode = (endpoint) => {
 	header.appendChild(uriTag);
 
 	if (tokenRequired) {
-		const requiredTag = document.querySelector("p");
+		const requiredTag = document.createElement("p");
 
 		// SVG
 		const shieldSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-ellipsis-icon lucide-shield-ellipsis"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>`;
@@ -329,6 +340,7 @@ const getEndpointNode = (endpoint) => {
 			fetchContainer,
 			dataContainer,
 			queryParameters,
+			tokenRequired,
 		);
 	});
 	content.appendChild(fetchContainer);

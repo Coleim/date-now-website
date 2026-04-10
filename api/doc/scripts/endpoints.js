@@ -155,11 +155,26 @@ const generateDELETEEndpoint = (data) => {
 };
 
 const generateCustomEndpoint = (e, uri) => {
+	let tokenRequired = e.tokenRequired;
+
+	if (tokenRequired === undefined) {
+		switch (e.method) {
+			case "POST":
+			case "PUT":
+			case "DELETE":
+				tokenRequired = true;
+				break;
+			default:
+				tokenRequired = false;
+		}
+	}
+
 	return {
 		method: e.method,
 		name: e.name,
 		body: e.body,
 		responses: e.responses ?? [],
+		tokenRequired,
 		uri: `${uri}${e.uri}`,
 		uriParameters: getParametersURIArr(e.uriParameters ?? []).map(
 			(key) => ({
@@ -194,7 +209,6 @@ const generateTablesEndpoints = (data) => {
 		if (el.includedEndpoints !== undefined) {
 			includedEnpointsGenerators = [];
 
-			console.log(el.includedEndpoints);
 			el.includedEndpoints.forEach((i) => {
 				includedEnpointsGenerators.push(endpointGenerators[i]);
 			});
@@ -206,16 +220,14 @@ const generateTablesEndpoints = (data) => {
 			el.customEndpoints !== undefined &&
 			el.customEndpoints.length > 0
 		) {
-			el.customEndpoints.forEach((i) =>
-				includedEndpoints.push(generateCustomEndpoint(i, el.uri)),
-			);
+			el.customEndpoints.forEach((i) => {
+				includedEndpoints.push(generateCustomEndpoint(i, el.uri));
+			});
 		}
 
 		includedEndpoints.forEach((e) => {
 			table.endpoints.push(e);
 		});
-
-		console.log(table);
 
 		tables.push(table);
 	});
